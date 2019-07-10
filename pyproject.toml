@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "philiprehberger-event-emitter"
-version = "0.1.0"
+version = "0.1.1"
 description = "Type-safe event emitter with sync and async listener support"
 readme = "README.md"
 license = "MIT"
@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/philiprehberger/py-event-emitter"
+Homepage = "https://github.com/philiprehberger/py-event-emitter#readme"
 Repository = "https://github.com/philiprehberger/py-event-emitter"
 Issues = "https://github.com/philiprehberger/py-event-emitter/issues"
+Changelog = "https://github.com/philiprehberger/py-event-emitter/blob/main/CHANGELOG.md"
