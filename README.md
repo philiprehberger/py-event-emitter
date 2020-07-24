@@ -55,6 +55,13 @@ emitter.on("data:received", async_handler)
 await emitter.async_emit("data:received", {"key": "value"})
 ```
 
+### Max Listeners
+
+```python
+# Warn when too many listeners are added (helps detect memory leaks)
+emitter = EventEmitter(max_listeners=10)
+```
+
 ### Management
 
 ```python
@@ -63,6 +70,19 @@ emitter.event_names()                 # list of events with listeners
 emitter.remove_all_listeners("event") # remove all for one event
 emitter.remove_all_listeners()        # remove all listeners
 ```
+
+## API
+
+| Method | Description |
+|--------|-------------|
+| `on(event, listener)` | Register listener, returns unsubscribe function |
+| `once(event, listener)` | Register one-time listener |
+| `off(event, listener)` | Remove a listener |
+| `emit(event, *args, **kwargs)` | Emit event synchronously |
+| `async_emit(event, *args, **kwargs)` | Emit event, awaiting async listeners |
+| `listener_count(event)` | Count listeners for an event |
+| `event_names()` | List events with listeners |
+| `remove_all_listeners(event?)` | Remove all or event-specific listeners |
 
 ## License
 

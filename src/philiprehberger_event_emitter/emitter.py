@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import warnings
 from typing import Any, Callable
 
 
@@ -9,14 +10,25 @@ Listener = Callable[..., Any]
 
 
 class EventEmitter:
-    def __init__(self) -> None:
+    def __init__(self, max_listeners: int | None = None) -> None:
         self._listeners: dict[str, list[Listener]] = {}
-        self._once_listeners: set[int] = set()
+        self._once_wrappers: dict[int, Listener] = {}
+        self._max_listeners = max_listeners
 
     def on(self, event: str, listener: Listener) -> Callable[[], None]:
         if event not in self._listeners:
             self._listeners[event] = []
         self._listeners[event].append(listener)
+
+        if self._max_listeners is not None:
+            count = len(self._listeners[event])
+            if count > self._max_listeners:
+                warnings.warn(
+                    f"Event '{event}' has {count} listeners, "
+                    f"exceeding max_listeners={self._max_listeners}. "
+                    f"Possible memory leak.",
+                    stacklevel=2,
+                )
 
         def unsubscribe() -> None:
             self.off(event, listener)
@@ -24,14 +36,18 @@ class EventEmitter:
         return unsubscribe
 
     def once(self, event: str, listener: Listener) -> Callable[[], None]:
-        self._once_listeners.add(id(listener))
-        return self.on(event, listener)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            self.off(event, wrapper)
+            return listener(*args, **kwargs)
+
+        self._once_wrappers[id(wrapper)] = listener
+        return self.on(event, wrapper)
 
     def off(self, event: str, listener: Listener) -> None:
         if event in self._listeners:
             try:
                 self._listeners[event].remove(listener)
-                self._once_listeners.discard(id(listener))
+                self._once_wrappers.pop(id(listener), None)
             except ValueError:
                 pass
 
@@ -45,8 +61,6 @@ class EventEmitter:
                     loop.create_task(result)
                 except RuntimeError:
                     pass
-            if id(listener) in self._once_listeners:
-                self.off(event, listener)
 
     async def async_emit(self, event: str, *args: Any, **kwargs: Any) -> None:
         listeners = list(self._listeners.get(event, []))
@@ -54,8 +68,6 @@ class EventEmitter:
             result = listener(*args, **kwargs)
             if inspect.isawaitable(result):
                 await result
-            if id(listener) in self._once_listeners:
-                self.off(event, listener)
 
     def listener_count(self, event: str) -> int:
         return len(self._listeners.get(event, []))
@@ -66,8 +78,8 @@ class EventEmitter:
     def remove_all_listeners(self, event: str | None = None) -> None:
         if event is None:
             self._listeners.clear()
-            self._once_listeners.clear()
+            self._once_wrappers.clear()
         elif event in self._listeners:
             for listener in self._listeners[event]:
-                self._once_listeners.discard(id(listener))
+                self._once_wrappers.pop(id(listener), None)
             del self._listeners[event]
