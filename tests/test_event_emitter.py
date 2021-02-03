@@ -206,3 +206,14 @@ def test_multiple_once_listeners():
     emitter.emit("evt")
     emitter.emit("evt")
     assert results == ["a", "b"]
+
+
+def test_emit_warns_on_async_listener():
+    emitter = EventEmitter()
+
+    async def async_handler():
+        pass
+
+    emitter.on("evt", async_handler)
+    with pytest.warns(RuntimeWarning, match="async_emit"):
+        emitter.emit("evt")

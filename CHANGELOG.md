@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Fix `emit()` to warn instead of silently dropping async listeners
+
 ## 0.2.0
 
 - Add `max_listeners` parameter with warning when exceeded

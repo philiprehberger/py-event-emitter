@@ -60,7 +60,13 @@ class EventEmitter:
                     loop = asyncio.get_running_loop()
                     loop.create_task(result)
                 except RuntimeError:
-                    pass
+                    result.close()
+                    warnings.warn(
+                        "Async listener passed to emit() was not awaited. "
+                        "Use async_emit() for async listeners.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
 
     async def async_emit(self, event: str, *args: Any, **kwargs: Any) -> None:
         listeners = list(self._listeners.get(event, []))
