@@ -84,6 +84,14 @@ emitter.remove_all_listeners()        # remove all listeners
 | `event_names()` | List events with listeners |
 | `remove_all_listeners(event?)` | Remove all or event-specific listeners |
 
+
+## Development
+
+```bash
+pip install -e .
+python -m pytest tests/ -v
+```
+
 ## License
 
 MIT
