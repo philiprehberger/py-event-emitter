@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "philiprehberger-event-emitter"
-version = "0.2.3"
+version = "0.3.0"
 description = "Type-safe event emitter with sync and async listener support"
 readme = "README.md"
 license = "MIT"
@@ -31,3 +31,9 @@ Changelog = "https://github.com/philiprehberger/py-event-emitter/blob/main/CHANG
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/philiprehberger_event_emitter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
