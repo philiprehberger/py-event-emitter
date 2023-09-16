@@ -217,3 +217,259 @@ def test_emit_warns_on_async_listener():
     emitter.on("evt", async_handler)
     with pytest.warns(RuntimeWarning, match="async_emit"):
         emitter.emit("evt")
+
+
+# --- Middleware / Interceptor tests ---
+
+
+def test_middleware_allows_emission():
+    emitter = EventEmitter()
+    results = []
+    log = []
+
+    def mw(event, args, kwargs):
+        log.append(event)
+        return True
+
+    emitter.use(mw)
+    emitter.on("evt", lambda x: results.append(x))
+    emitter.emit("evt", 1)
+    assert results == [1]
+    assert log == ["evt"]
+
+
+def test_middleware_cancels_emission():
+    emitter = EventEmitter()
+    results = []
+
+    def block(event, args, kwargs):
+        return False
+
+    emitter.use(block)
+    emitter.on("evt", lambda: results.append(1))
+    emitter.emit("evt")
+    assert results == []
+
+
+def test_middleware_selective_cancel():
+    emitter = EventEmitter()
+    results = []
+
+    def mw(event, args, kwargs):
+        if event == "blocked":
+            return False
+        return True
+
+    emitter.use(mw)
+    emitter.on("allowed", lambda: results.append("a"))
+    emitter.on("blocked", lambda: results.append("b"))
+    emitter.emit("allowed")
+    emitter.emit("blocked")
+    assert results == ["a"]
+
+
+def test_middleware_remove():
+    emitter = EventEmitter()
+    results = []
+    call_count = []
+
+    def mw(event, args, kwargs):
+        call_count.append(1)
+        return True
+
+    remove = emitter.use(mw)
+    emitter.on("evt", lambda: results.append(1))
+    emitter.emit("evt")
+    assert len(call_count) == 1
+
+    remove()
+    emitter.emit("evt")
+    assert len(call_count) == 1  # middleware not called again
+
+
+def test_middleware_chain_short_circuits():
+    emitter = EventEmitter()
+    calls = []
+
+    def mw1(event, args, kwargs):
+        calls.append("mw1")
+        return False
+
+    def mw2(event, args, kwargs):
+        calls.append("mw2")
+        return True
+
+    emitter.use(mw1)
+    emitter.use(mw2)
+    emitter.on("evt", lambda: None)
+    emitter.emit("evt")
+    assert calls == ["mw1"]  # mw2 never called
+
+
+def test_middleware_none_return_allows():
+    emitter = EventEmitter()
+    results = []
+
+    def mw(event, args, kwargs):
+        pass  # returns None implicitly
+
+    emitter.use(mw)
+    emitter.on("evt", lambda: results.append(1))
+    emitter.emit("evt")
+    assert results == [1]
+
+
+def test_middleware_with_async_emit():
+    async def _run():
+        emitter = EventEmitter()
+        results = []
+
+        def block(event, args, kwargs):
+            return False
+
+        emitter.use(block)
+
+        async def handler():
+            results.append(1)
+
+        emitter.on("evt", handler)
+        await emitter.async_emit("evt")
+        assert results == []
+
+    asyncio.run(_run())
+
+
+def test_middleware_with_emit_with_timeout():
+    async def _run():
+        emitter = EventEmitter()
+
+        def block(event, args, kwargs):
+            return False
+
+        emitter.use(block)
+        emitter.on("evt", lambda: "value")
+        results = await emitter.emit_with_timeout("evt", timeout=1.0)
+        assert results == []
+
+    asyncio.run(_run())
+
+
+# --- wait_for tests ---
+
+
+def test_wait_for_resolves():
+    async def _run():
+        emitter = EventEmitter()
+
+        async def delayed():
+            await asyncio.sleep(0.01)
+            emitter.emit("done", "result", key="val")
+
+        asyncio.create_task(delayed())
+        args, kwargs = await emitter.wait_for("done", timeout=2.0)
+        assert args == ("result",)
+        assert kwargs == {"key": "val"}
+
+    asyncio.run(_run())
+
+
+def test_wait_for_timeout():
+    async def _run():
+        emitter = EventEmitter()
+        with pytest.raises(asyncio.TimeoutError):
+            await emitter.wait_for("never", timeout=0.05)
+
+    asyncio.run(_run())
+
+
+def test_wait_for_no_timeout():
+    async def _run():
+        emitter = EventEmitter()
+
+        async def delayed():
+            await asyncio.sleep(0.01)
+            emitter.emit("done", 42)
+
+        asyncio.create_task(delayed())
+        args, kwargs = await emitter.wait_for("done", timeout=2.0)
+        assert args == (42,)
+
+    asyncio.run(_run())
+
+
+def test_wait_for_cleans_up_on_timeout():
+    async def _run():
+        emitter = EventEmitter()
+        with pytest.raises(asyncio.TimeoutError):
+            await emitter.wait_for("evt", timeout=0.05)
+        # The once listener should have been cleaned up
+        assert emitter.listener_count("evt") == 0
+
+    asyncio.run(_run())
+
+
+def test_wait_for_only_fires_once():
+    async def _run():
+        emitter = EventEmitter()
+
+        async def delayed():
+            await asyncio.sleep(0.01)
+            emitter.emit("evt", "first")
+            emitter.emit("evt", "second")
+
+        asyncio.create_task(delayed())
+        args, _ = await emitter.wait_for("evt", timeout=2.0)
+        assert args == ("first",)
+
+    asyncio.run(_run())
+
+
+# --- Prepend tests ---
+
+
+def test_prepend_fires_first():
+    emitter = EventEmitter()
+    order = []
+    emitter.on("evt", lambda: order.append("second"))
+    emitter.prepend("evt", lambda: order.append("first"))
+    emitter.emit("evt")
+    assert order == ["first", "second"]
+
+
+def test_prepend_once():
+    emitter = EventEmitter()
+    order = []
+    emitter.on("evt", lambda: order.append("regular"))
+    emitter.prepend_once("evt", lambda: order.append("once-first"))
+    emitter.emit("evt")
+    emitter.emit("evt")
+    assert order == ["once-first", "regular", "regular"]
+
+
+# --- emit_with_timeout tests ---
+
+
+def test_emit_with_timeout_returns_results():
+    async def _run():
+        emitter = EventEmitter()
+        emitter.on("evt", lambda: "sync-result")
+        results = await emitter.emit_with_timeout("evt", timeout=1.0)
+        assert results == ["sync-result"]
+
+    asyncio.run(_run())
+
+
+def test_emit_with_timeout_skips_slow():
+    async def _run():
+        emitter = EventEmitter()
+
+        async def slow():
+            await asyncio.sleep(10)
+            return "slow"
+
+        emitter.on("evt", slow)
+        emitter.on("evt", lambda: "fast")
+        results = await emitter.emit_with_timeout("evt", timeout=0.05)
+        assert results == ["fast"]
+
+    asyncio.run(_run())
