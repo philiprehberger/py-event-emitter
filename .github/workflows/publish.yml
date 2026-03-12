@@ -16,8 +16,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install build tools
-        run: pip install build twine
+      - name: Install dependencies
+        run: pip install build twine pytest
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Run tests
+        run: pytest tests/ -v
 
       - name: Build package
         run: python -m build
