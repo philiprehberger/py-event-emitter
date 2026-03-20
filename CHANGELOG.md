@@ -1,4 +1,8 @@
 # Changelog
+## 0.2.5
+
+- Add badges to README
+
 ## 0.2.4- Add pytest and mypy tool configuration to pyproject.toml
 
 ## 0.2.3

@@ -1,5 +1,9 @@
 # philiprehberger-event-emitter
 
+[![Tests](https://github.com/philiprehberger/py-event-emitter/actions/workflows/publish.yml/badge.svg)](https://github.com/philiprehberger/py-event-emitter/actions/workflows/publish.yml)
+[![PyPI version](https://img.shields.io/pypi/v/philiprehberger-event-emitter.svg)](https://pypi.org/project/philiprehberger-event-emitter/)
+[![License](https://img.shields.io/github/license/philiprehberger/py-event-emitter)](LICENSE)
+
 Type-safe event emitter with sync and async listener support.
 
 ## Installation
