@@ -43,6 +43,34 @@ class EventEmitter:
         self._once_wrappers[id(wrapper)] = listener
         return self.on(event, wrapper)
 
+    def prepend(self, event: str, listener: Listener) -> Callable[[], None]:
+        if event not in self._listeners:
+            self._listeners[event] = []
+        self._listeners[event].insert(0, listener)
+
+        if self._max_listeners is not None:
+            count = len(self._listeners[event])
+            if count > self._max_listeners:
+                warnings.warn(
+                    f"Event '{event}' has {count} listeners, "
+                    f"exceeding max_listeners={self._max_listeners}. "
+                    f"Possible memory leak.",
+                    stacklevel=2,
+                )
+
+        def unsubscribe() -> None:
+            self.off(event, listener)
+
+        return unsubscribe
+
+    def prepend_once(self, event: str, listener: Listener) -> Callable[[], None]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            self.off(event, wrapper)
+            return listener(*args, **kwargs)
+
+        self._once_wrappers[id(wrapper)] = listener
+        return self.prepend(event, wrapper)
+
     def off(self, event: str, listener: Listener) -> None:
         if event in self._listeners:
             try:
@@ -80,6 +108,21 @@ class EventEmitter:
 
     def event_names(self) -> list[str]:
         return [k for k, v in self._listeners.items() if v]
+
+    async def emit_with_timeout(
+        self, event: str, timeout: float, *args: Any, **kwargs: Any
+    ) -> list[Any]:
+        listeners = list(self._listeners.get(event, []))
+        results: list[Any] = []
+        for listener in listeners:
+            try:
+                result = listener(*args, **kwargs)
+                if inspect.isawaitable(result):
+                    result = await asyncio.wait_for(result, timeout=timeout)
+                results.append(result)
+            except (asyncio.TimeoutError, TimeoutError):
+                continue
+        return results
 
     def remove_all_listeners(self, event: str | None = None) -> None:
         if event is None:

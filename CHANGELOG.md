@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (2026-03-27)
+
+- Add `prepend()` to insert listeners at the front of the queue
+- Add `prepend_once()` for one-shot prepend listeners
+- Add `emit_with_timeout()` for async emission with per-listener timeout
+- Add 8 badges, Support section, and issue templates to README
+- Add `[tool.pytest.ini_options]` and `[tool.mypy]` to pyproject.toml
+
 ## 0.2.3
 
 - Add Development section to README
