@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (2026-03-28)
+
+- Add event middleware/interceptor system via `emitter.use()`
+- Add `emitter.wait_for()` async method that returns a Future resolving when the event fires
+- Bring package into full compliance with guides
+
 ## 0.3.0 (2026-03-27)
 
 - Add `prepend()` to insert listeners at the front of the queue

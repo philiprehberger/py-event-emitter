@@ -65,6 +65,28 @@ emitter.emit("data", payload)  # first_handler runs before second_handler
 emitter.prepend_once("data", one_time_first_handler)
 ```
 
+### Middleware / Interceptors
+
+```python
+# Middleware receives (event, args, kwargs) and can modify or cancel emissions
+def logging_middleware(event, args, kwargs):
+    print(f"Event fired: {event}")
+    return True  # allow emission to proceed
+
+def block_middleware(event, args, kwargs):
+    if event == "secret":
+        return False  # cancel emission
+    return True
+
+remove_logger = emitter.use(logging_middleware)
+emitter.use(block_middleware)
+
+emitter.emit("hello", "world")   # logged, listeners fire
+emitter.emit("secret", "data")   # blocked, no listeners fire
+
+remove_logger()  # remove the logging middleware
+```
+
 ### Async Listeners
 
 ```python
@@ -75,6 +97,28 @@ emitter.on("data:received", async_handler)
 
 # Use async_emit to await async listeners
 await emitter.async_emit("data:received", {"key": "value"})
+```
+
+### Wait for an Event
+
+```python
+import asyncio
+
+async def main():
+    emitter = EventEmitter()
+
+    # Schedule an emission after a delay
+    async def delayed_emit():
+        await asyncio.sleep(0.1)
+        emitter.emit("ready", "payload")
+
+    asyncio.create_task(delayed_emit())
+
+    # Block until "ready" fires (with optional timeout)
+    args, kwargs = await emitter.wait_for("ready", timeout=5.0)
+    print(args[0])  # "payload"
+
+asyncio.run(main())
 ```
 
 ### Emit with Timeout
@@ -119,8 +163,10 @@ emitter.remove_all_listeners()        # remove all listeners
 | `.prepend(event, listener)` | Insert listener at front of queue, returns unsubscribe function |
 | `.prepend_once(event, listener)` | One-shot prepend listener |
 | `.off(event, listener)` | Remove a listener |
+| `.use(middleware)` | Register middleware that can modify/cancel emissions, returns remove function |
 | `.emit(event, *args, **kwargs)` | Emit event synchronously |
 | `.async_emit(event, *args, **kwargs)` | Emit event, awaiting async listeners |
+| `.wait_for(event, timeout=None)` | Async wait for an event, returns `(args, kwargs)` |
 | `.emit_with_timeout(event, timeout, *args, **kwargs)` | Emit with per-listener timeout, returns list of results |
 | `.listener_count(event)` | Count listeners for an event |
 | `.event_names()` | List events with listeners |
