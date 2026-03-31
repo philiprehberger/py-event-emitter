@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 (2026-03-31)
+
+- Standardize README to 3-badge format with emoji Support section
+- Update CI checkout action to v5 for Node.js 24 compatibility
+
 ## 0.4.0 (2026-03-28)
 
 - Add event middleware/interceptor system via `emitter.use()`

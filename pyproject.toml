@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "philiprehberger-event-emitter"
-version = "0.4.0"
+version = "0.4.1"
 description = "Type-safe event emitter with sync and async listener support"
 readme = "README.md"
 license = "MIT"
