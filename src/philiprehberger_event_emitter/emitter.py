@@ -171,6 +171,52 @@ class EventEmitter:
     def event_names(self) -> list[str]:
         return [k for k, v in self._listeners.items() if v]
 
+    def emit_and_collect(self, event: str, *args: Any, **kwargs: Any) -> list[Any]:
+        """Fire event listeners and collect their return values.
+
+        Sync only. If any registered listener for ``event`` is a coroutine
+        function, raises :class:`TypeError`. Returns a list of return values in
+        registration order. Listeners that raise propagate the first exception.
+        """
+        listeners = list(self._listeners.get(event, []))
+        for listener in listeners:
+            target = self._once_wrappers.get(id(listener), listener)
+            if asyncio.iscoroutinefunction(target) or asyncio.iscoroutinefunction(
+                listener
+            ):
+                raise TypeError(
+                    "emit_and_collect requires sync listeners; "
+                    "use async_emit_and_collect for async listeners"
+                )
+        if not self._run_middlewares(event, args, kwargs):
+            return []
+        # Re-read listeners after middleware (which may have side effects), but
+        # use the original list to preserve registration order semantics.
+        listeners = list(self._listeners.get(event, []))
+        results: list[Any] = []
+        for listener in listeners:
+            results.append(listener(*args, **kwargs))
+        return results
+
+    async def async_emit_and_collect(
+        self, event: str, *args: Any, **kwargs: Any
+    ) -> list[Any]:
+        """Fire all listeners and await coroutine results.
+
+        Collects return values in registration order, awaiting any coroutine
+        results from async listeners. Sync listeners run directly.
+        """
+        if not self._run_middlewares(event, args, kwargs):
+            return []
+        listeners = list(self._listeners.get(event, []))
+        results: list[Any] = []
+        for listener in listeners:
+            result = listener(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+            results.append(result)
+        return results
+
     async def emit_with_timeout(
         self, event: str, timeout: float, *args: Any, **kwargs: Any
     ) -> list[Any]:

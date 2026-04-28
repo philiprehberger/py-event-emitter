@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 (2026-04-27)
+
+- Add `emit_and_collect(event, *args, **kwargs)` returning a list of listener return values for sync listeners
+- Add `async_emit_and_collect(event, *args, **kwargs)` async counterpart that awaits coroutine listeners and collects results
+
 ## 0.4.1 (2026-03-31)
 
 - Standardize README to 3-badge format with emoji Support section

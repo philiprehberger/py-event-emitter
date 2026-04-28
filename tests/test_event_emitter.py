@@ -473,3 +473,87 @@ def test_emit_with_timeout_skips_slow():
         assert results == ["fast"]
 
     asyncio.run(_run())
+
+
+# --- emit_and_collect / async_emit_and_collect tests ---
+
+
+class TestEmitAndCollect:
+    def test_collects_return_values_in_registration_order(self):
+        emitter = EventEmitter()
+        emitter.on("evt", lambda x: x + 1)
+        emitter.on("evt", lambda x: x + 2)
+        emitter.on("evt", lambda x: x + 3)
+        results = emitter.emit_and_collect("evt", 10)
+        assert results == [11, 12, 13]
+
+    def test_prepend_listener_appears_first(self):
+        emitter = EventEmitter()
+        emitter.on("evt", lambda: "second")
+        emitter.prepend("evt", lambda: "first")
+        results = emitter.emit_and_collect("evt")
+        assert results == ["first", "second"]
+
+    def test_once_listener_consumed_after_firing(self):
+        emitter = EventEmitter()
+        emitter.once("evt", lambda: "once")
+        emitter.on("evt", lambda: "regular")
+
+        first = emitter.emit_and_collect("evt")
+        assert first == ["once", "regular"]
+
+        second = emitter.emit_and_collect("evt")
+        assert second == ["regular"]
+
+    def test_listener_returning_none_keeps_none_in_list(self):
+        emitter = EventEmitter()
+        emitter.on("evt", lambda: None)
+        emitter.on("evt", lambda: "value")
+        emitter.on("evt", lambda: None)
+        results = emitter.emit_and_collect("evt")
+        assert results == [None, "value", None]
+
+    def test_async_listener_raises_type_error(self):
+        emitter = EventEmitter()
+
+        async def async_handler():
+            return "async"
+
+        emitter.on("evt", async_handler)
+        with pytest.raises(TypeError, match="async_emit_and_collect"):
+            emitter.emit_and_collect("evt")
+
+    def test_async_emit_and_collect_mixes_sync_and_async(self):
+        async def _run():
+            emitter = EventEmitter()
+
+            def sync_handler(x):
+                return f"sync:{x}"
+
+            async def async_handler(x):
+                return f"async:{x}"
+
+            emitter.on("evt", sync_handler)
+            emitter.on("evt", async_handler)
+            results = await emitter.async_emit_and_collect("evt", 1)
+            assert results == ["sync:1", "async:1"]
+
+        asyncio.run(_run())
+
+    def test_listener_exception_propagates(self):
+        emitter = EventEmitter()
+        called = []
+
+        def first():
+            called.append("first")
+            raise RuntimeError("boom")
+
+        def second():
+            called.append("second")
+            return "second"
+
+        emitter.on("evt", first)
+        emitter.on("evt", second)
+        with pytest.raises(RuntimeError, match="boom"):
+            emitter.emit_and_collect("evt")
+        assert called == ["first"]

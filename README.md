@@ -116,6 +116,38 @@ async def main():
 asyncio.run(main())
 ```
 
+### Collect return values
+
+```python
+# Sync: collect listener return values in registration order
+emitter.on("compute", lambda x: x * 2)
+emitter.on("compute", lambda x: x + 100)
+results = emitter.emit_and_collect("compute", 5)
+print(results)  # [10, 105]
+
+# Async: awaits coroutine listeners and collects mixed sync + async returns
+import asyncio
+
+async def main():
+    emitter = EventEmitter()
+
+    def sync_handler(x):
+        return f"sync:{x}"
+
+    async def async_handler(x):
+        return f"async:{x}"
+
+    emitter.on("evt", sync_handler)
+    emitter.on("evt", async_handler)
+    results = await emitter.async_emit_and_collect("evt", 1)
+    print(results)  # ["sync:1", "async:1"]
+
+asyncio.run(main())
+```
+
+`emit_and_collect` is sync-only and raises `TypeError` if any registered
+listener is a coroutine function — use `async_emit_and_collect` in that case.
+
 ### Emit with Timeout
 
 ```python
@@ -160,7 +192,9 @@ emitter.remove_all_listeners()        # remove all listeners
 | `.off(event, listener)` | Remove a listener |
 | `.use(middleware)` | Register middleware that can modify/cancel emissions, returns remove function |
 | `.emit(event, *args, **kwargs)` | Emit event synchronously |
+| `.emit_and_collect(event, *args, **kwargs)` | Emit synchronously and return list of listener return values (raises if any listener is async) |
 | `.async_emit(event, *args, **kwargs)` | Emit event, awaiting async listeners |
+| `.async_emit_and_collect(event, *args, **kwargs)` | Emit, awaiting coroutines, and return list of listener return values |
 | `.wait_for(event, timeout=None)` | Async wait for an event, returns `(args, kwargs)` |
 | `.emit_with_timeout(event, timeout, *args, **kwargs)` | Emit with per-listener timeout, returns list of results |
 | `.listener_count(event)` | Count listeners for an event |
