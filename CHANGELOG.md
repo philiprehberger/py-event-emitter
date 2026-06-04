@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 (2026-06-04)
+
+- Add `EventEmitter.pipe(target, *events)` to forward selected events onto another emitter; returns an unsubscribe function that detaches every forwarder installed by the call
+- Sync `pyproject.toml` `description` with the README one-liner
+- Add `package-card.webp` to README
+
 ## 0.5.0 (2026-04-27)
 
 - Add `emit_and_collect(event, *args, **kwargs)` returning a list of listener return values for sync listeners

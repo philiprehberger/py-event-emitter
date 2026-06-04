@@ -4,6 +4,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/philiprehberger-event-emitter.svg)](https://pypi.org/project/philiprehberger-event-emitter/)
 [![Last updated](https://img.shields.io/github/last-commit/philiprehberger/py-event-emitter)](https://github.com/philiprehberger/py-event-emitter/commits/main)
 
+![philiprehberger-event-emitter](https://raw.githubusercontent.com/philiprehberger/py-event-emitter/main/package-card.webp)
+
 Type-safe event emitter with sync and async listener support.
 
 ## Installation
@@ -180,6 +182,21 @@ emitter.remove_all_listeners("event") # remove all for one event
 emitter.remove_all_listeners()        # remove all listeners
 ```
 
+### Forwarding events with `pipe`
+
+```python
+from philiprehberger_event_emitter import EventEmitter
+
+worker = EventEmitter()
+bus = EventEmitter()
+
+# Re-emit "task.completed" and "task.failed" from worker onto the bus
+stop = worker.pipe(bus, "task.completed", "task.failed")
+
+# Later, stop forwarding without touching unrelated listeners
+stop()
+```
+
 ## API
 
 | Function / Class | Description |
@@ -200,6 +217,7 @@ emitter.remove_all_listeners()        # remove all listeners
 | `.listener_count(event)` | Count listeners for an event |
 | `.event_names()` | List events with listeners |
 | `.remove_all_listeners(event?)` | Remove all or event-specific listeners |
+| `.pipe(target, *events)` | Re-emit named events onto another emitter; returns unsubscribe function |
 
 ## Development
 

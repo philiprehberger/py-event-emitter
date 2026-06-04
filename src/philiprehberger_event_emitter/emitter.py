@@ -242,3 +242,31 @@ class EventEmitter:
             for listener in self._listeners[event]:
                 self._once_wrappers.pop(id(listener), None)
             del self._listeners[event]
+
+    def pipe(self, target: EventEmitter, *events: str) -> Callable[[], None]:
+        """Re-emit *events* from this emitter onto *target*.
+
+        For each event name, a listener is registered on ``self`` that
+        forwards the call to ``target.emit(event, *args, **kwargs)``. Useful
+        for fan-out and bridging between subsystem emitters.
+
+        Returns an unsubscribe function that removes every forwarding
+        listener installed by this call.
+        """
+        if not events:
+            return lambda: None
+
+        unsubs: list[Callable[[], None]] = []
+        for event in events:
+            def _forward(
+                *args: Any, _event: str = event, **kwargs: Any
+            ) -> None:
+                target.emit(_event, *args, **kwargs)
+
+            unsubs.append(self.on(event, _forward))
+
+        def remove() -> None:
+            for unsub in unsubs:
+                unsub()
+
+        return remove

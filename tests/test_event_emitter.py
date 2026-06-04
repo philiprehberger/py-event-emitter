@@ -1,5 +1,6 @@
 import asyncio
 import warnings
+from typing import Any
 
 import pytest
 from philiprehberger_event_emitter import EventEmitter
@@ -557,3 +558,72 @@ class TestEmitAndCollect:
         with pytest.raises(RuntimeError, match="boom"):
             emitter.emit_and_collect("evt")
         assert called == ["first"]
+
+
+# EventEmitter.pipe
+
+
+def test_pipe_forwards_named_events() -> None:
+    from philiprehberger_event_emitter import EventEmitter
+
+    src = EventEmitter()
+    dst = EventEmitter()
+    received: list[tuple[Any, ...]] = []
+
+    dst.on("change", lambda *a, **k: received.append((a, k)))
+
+    src.pipe(dst, "change")
+    src.emit("change", 1, 2, key="value")
+
+    assert received == [((1, 2), {"key": "value"})]
+
+
+def test_pipe_only_forwards_subscribed_events() -> None:
+    from philiprehberger_event_emitter import EventEmitter
+
+    src = EventEmitter()
+    dst = EventEmitter()
+    received: list[str] = []
+
+    dst.on("a", lambda: received.append("a"))
+    dst.on("b", lambda: received.append("b"))
+
+    src.pipe(dst, "a")
+    src.emit("a")
+    src.emit("b")  # not piped
+
+    assert received == ["a"]
+
+
+def test_pipe_unsubscribe_removes_forwarding() -> None:
+    from philiprehberger_event_emitter import EventEmitter
+
+    src = EventEmitter()
+    dst = EventEmitter()
+    received: list[int] = []
+
+    dst.on("tick", lambda n: received.append(n))
+    stop = src.pipe(dst, "tick")
+
+    src.emit("tick", 1)
+    stop()
+    src.emit("tick", 2)
+
+    assert received == [1]
+
+
+def test_pipe_handles_multiple_events() -> None:
+    from philiprehberger_event_emitter import EventEmitter
+
+    src = EventEmitter()
+    dst = EventEmitter()
+    received: list[str] = []
+
+    dst.on("open", lambda: received.append("open"))
+    dst.on("close", lambda: received.append("close"))
+
+    src.pipe(dst, "open", "close")
+    src.emit("open")
+    src.emit("close")
+
+    assert received == ["open", "close"]
